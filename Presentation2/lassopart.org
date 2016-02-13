@@ -1,0 +1,148 @@
+#+STARTUP: beamer
+#+LaTeX_CLASS: beamer
+#+LaTeX_CLASS_OPTIONS: [bigger]
+#+TITLE: lassopart
+#+DATE: <2016-02-12 Fri>
+#+AUTHOR: Nooreen S Dabbish
+#+EMAIL: nooreen@noory
+#+OPTIONS: ':t *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t
+#+OPTIONS: c:nil creator:comment d:(not "LOGBOOK") date:t e:t
+#+OPTIONS: email:nil f:t inline:t num:t p:nil pri:nil stat:t tags:t
+#+OPTIONS: tasks:t tex:t timestamp:t toc:t todo:t |:t
+#+CREATOR: Emacs 24.4.1 (Org mode 8.2.10)
+#+DESCRIPTION:
+#+EXCLUDE_TAGS: noexport
+#+KEYWORDS:
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+#+BEAMER_FRAME_LEVEL: 2
+#+COLUMNS: %40ITEM %10BEAMER_env(Env) %9BEAMER_envargs(Env Args) %4BEAMER_col(Col) %10BEAMER_extra(Extra)
+
+
+* Lasso Regression in (Casanova 2012)
+
+*** Ensemble method based on lasso regression
+
+- takes advantage of lasso's sparsity property
+- index for scoring variable importance
+     + scores based on subsampling and ensemble learning
+     + using penalized lasso linear regression
+- coordinate descent
+     + GLMNET library
+     + time-efficient use of full data space
+- No feature reduction: full set of correlations
+
+*** Matrix vectorization and adding responses (gender)
+
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+
+   ## Create list of unique region abbreviations from original list
+   ## Adds integers (starting with 2) to non-unique values
+   setwd('~/Documents/BejingZhang')
+   abbrev <- read.table("abbreviations.txt")
+   abbrev[] <- lapply(abbrev, as.character)
+   v <- vector("list", 0)
+   v <- abbrev[[1]][1]
+   for (j in 2:dim(abbrev)[1]){
+       x <- 1
+       y <- abbrev[[1]][j]
+       while (is.element(y, v)){
+          x <- x+1
+          y <- paste0(abbrev[[1]][j],as.character(x), sep="")
+       }
+       v <- c(v,y)
+   }
+
+   table(v) # they are now all unique
+   
+   ## create list of downloaded folders with data
+   ## there were problems reading in 954,955,956,957
+   array <- c(787:839,841:851,853,857:865,867:872,875:878,
+              880:938,940:953,974:978)
+   array2 <-list()
+
+  metadata <- read.csv("metadata-bejingZangOnly.csv", header = TRUE)
+  head(metadata)
+  metadata <- metadata[,c("upload_data.id","upload_data.subject_pool", "upload_data.group_size")]
+  colnames(metadata) <- c("id","age","gender")
+  metadata[metadata$id == 787,]$gender
+
+  vectorgender <- data.frame(matrix(nrow=length(array), ncol=((length(v)*(length(v)-1)/2+1+1+1) )))
+
+
+  ##need to create a vector of labels
+  corrlabels <- c()
+  for(i in 2:(length(v))){
+      for (j in 1:(i-1)){
+          corrlabels <- c(corrlabels,paste(v[i],v[j],sep="-"))
+      }
+  }
+
+  colnames(vectorgender) <- c("id","age","gender",corrlabels)
+  levels(vectorgender$gender) <- c("Male","Female")
+
+  ## Read in connectivity matrices, add row/col labels, and add 1 to diagonal
+   for (i in 1:length(array)){
+   array2[[i]] <- read.table(paste0(paste0("connectivity_matrix",as.character(array[i])),".txt"))
+   dimnames(array2[[i]])[[1]] <- as.vector(v)
+   dimnames(array2[[i]])[[2]] <- as.vector(v)
+   array2[[i]] <- array2[[i]] + diag(x=1,nrow = length(array2[[i]]))
+   vectorgender[i,] <- c(metadata[metadata$id == array[i], ]$id,
+                         metadata[metadata$id == array[i], ]$age,
+                         as.factor(metadata[metadata$id == array[i], ]$gender),
+                         unlist(array2[[i]][upper.tri(array2[[i]],diag=FALSE)]))
+   }
+
+
+  setwd('~/Dropbox/STAT 9190 Project/jstsp2015/Presentation2')
+                                          
+#+END_SRC
+
+
+** Load GLMNET and fit data
+
+*** Code
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  ## install.packages("glmnet", repos='http://cran.us.r-project.org')
+  library(glmnet)
+
+  fit = glmnet(x = as.matrix(vectorgender[,-(1:3)]),
+               y = as.vector(vectorgender$gender))
+
+  plot(fit, label =TRUE)
+#+END_SRC
+
+*** Plot
+
+[[file:coeffplot.png]]
+
+** Cross-Validation
+
+*** Code
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  cvfit = cv.glmnet(x = as.matrix(vectorgender[,-(1:3)]),
+                    y = (vectorgender$gender))
+
+  plot(cvfit)
+#+END_SRC
+
+*** Plot
+
+[[file:cvplot.png]]
+
+*** Selected \lambda s
+
+#+BEGIN_SRC R :session cmatrix :results output :exports both :tangle yes
+  cvfit$lambda.min
+#+END_SRC
+
+**** ~lambda.min~ value that gives minimum cross-validated error
+
+#+BEGIN_SRC R :session cmatrix :results output :exports both :tangle yes
+cvfit$lambda.1se
+#+END_SRC
+
+**** TODO ~lambda.1se~ value that gives most regularized model with error vwithin one standard error of minimum cross-validated error
+
+
+
