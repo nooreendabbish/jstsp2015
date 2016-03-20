@@ -1,0 +1,22 @@
+
+* math.sort
+
+Kaijun: number is how many parts you want
+- checks only the first factor by default
+- http://www.inside-r.org.packages/cran/psych/docs/mat.sort
+
+ - K: we want one or two clusters, so it regresses the columns of the
+ covariance matrix
+
+ - How can I use the top three or four? (It sorts by the first factor by default)
+ - fa( )
+
+ - *Select f=1 and f=2 and display the correlation matrices*
+ - Does the structure change?
+
+ - f=2, first two or only the second?
+ - K: it groups the columns
+
+ - *dowload the function and unpack that function*
+
+ 

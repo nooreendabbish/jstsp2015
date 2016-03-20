@@ -54,7 +54,7 @@
    }
 
    table(v) # they are now all unique
-   
+ 
    ## create list of downloaded folders with data
    ## there were problems reading in 954,955,956,957
    array <- c(787:839,841:851,853,857:865,867:872,875:878,
@@ -94,8 +94,8 @@
    }
 
 
-  setwd('~/Dropbox/STAT 9190 Project/jstsp2015/Presentation2')
-                                          
+  setwd('~/Dropbox/STAT 9190 Project/jstsp2015/Presentation3')
+                                        
 #+END_SRC
 
 #+RESULTS:

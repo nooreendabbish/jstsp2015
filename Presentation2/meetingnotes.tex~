@@ -1,0 +1,174 @@
+% Created 2016-02-14 Sun 14:04
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\author{Nooreen S Dabbish}
+\date{\textit{<2016-02-14 Sun>}}
+\title{Skype Meeting Notes}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs 24.4.1 (Org mode 8.2.10)}}
+\begin{document}
+
+\maketitle
+Assignments/instructions from Dr. Deep are in \textbf{bold}.
+
+\section{math.sort}
+\label{sec-1}
+
+Kaijun: number is how many parts you want
+\begin{itemize}
+\item checks only the first factor by default
+\item \url{http://www.inside-r.org.packages/cran/psych/docs/mat.sort}
+
+\begin{itemize}
+\item K: we want one or two clusters, so it regresses the columns of the
+\end{itemize}
+covariance matrix
+
+\begin{itemize}
+\item How can I use the top three or four? (It sorts by the first factor by default)
+\item fa( )
+
+\item \textbf{Select f=1 and f=2 and display the correlation matrices}
+\item Does the structure change?
+
+\item f=2, first two or only the second?
+\item K: it groups the columns
+
+\item \textbf{dowload the function and unpack that function}
+\end{itemize}
+\end{itemize}
+
+
+\section{Lasso}
+\label{sec-2}
+\begin{itemize}
+\item huge number of predictors (15,576)
+\item we want to identiify which correlations are changing with 
+male and female
+\item lasso simultaneously picks variables and determines importance
+
+\item \textbf{Map the non-zero back to the brain}
+
+\item Matrix vectorization and adding response
+\item save all the data in a three D matrix X$_{\text{ijk}}$ X[i,j,k]
+ X[i, , ,] --> correlation matrix of ith invdividual
+c(X[i,,])
+upper.tri()
+
+\item \textbf{Streamline data as .Rda} Y-vector and 3-d X matrix
+
+\item save(Y,X,file="<>.Rdata'')
+
+\item \textbf{Any difference between lasso logistic and lasso linear}
+  Are the selected coefficients different?
+\end{itemize}
+
+\section{Paper to present on 2/22}
+\label{sec-3}
+
+\begin{itemize}
+\item highly cited, very recent paper
+
+\item Main focus: one part is lasso logistic and linear regression
+ Problem of how to select the threshold? The method we are doing
+takes all the correlation as a variable in the model. This method is
+not scalable for large dimentsional brain data with hundreds or thousands
+\end{itemize}
+of sensors. It is not an intelligent way for tackling the spatial correlation
+between nodes.
+
+\section{Kaijun: on graph kernel}
+\label{sec-4}
+
+\begin{itemize}
+\item graph kernel is the relationship beween two graphs
+\item for example random walks gives a short path kernel
+\item the two-sample test: actuallyy tests the
+
+\item \textbf{More insight into definition of the kernel} I just want to know the formula.
+
+\item What people are doing right now: lasso approach, kernel approach. Will the
+\end{itemize}
+kernel approach help us to classify? How does it help us to answer the
+real question, if I have a Y vector and want to predict that?
+
+\begin{itemize}
+\item K: we look at the means and if they are the same, the graphs are the same.
+
+\item Kernel methods answers an important question of whehter the groups
+\end{itemize}
+have a different graph. But can you use this method to predict? If I reject and say 
+they are different, the next step would be to build a classifier and tell
+us whether it is y=1 or y=2.
+
+\begin{itemize}
+\item *First, two-sample hypothesis testing. Second, if I reject that hypothesis (there is a difference)
+\end{itemize}
+I have to build a classifier.*
+
+\begin{itemize}
+\item The other method was lasso logistic, Nooreen can predict whether it is
+\end{itemize}
+male or female. We have to build that capacity for kernel. Nooreen answered the
+second problem without answering the first question.
+
+\begin{itemize}
+\item Kaijun is developing a test statistic. It is only meaningful to build a
+\end{itemize}
+classifier if the answer is reject.
+
+\begin{itemize}
+\item write down these questions and mention them in your 2/22 presentation.
+\end{itemize}
+We want to develop a single method that can answer both questions simultaneously.
+
+\begin{itemize}
+\item \textbf{Kaijun assignment: give me some numbers for the application of this method}
+\end{itemize}
+
+\section{Summary}
+\label{sec-5}
+First point will be the two interesting questions 1, 2, 
+The method to attack the first problem (5 min, Kaijun) will be the graph kernel part.
+Then (5 min, Nooreen) on the prediction lasso part.
+
+Both of us present the paper (10 min, both)
+Last (10 min, focus on multiple testing thresholding) \textbf{new} understand that lasso logistic is not scalable. It
+is not the smartest way to attach that problem. We have to bring graph 
+into the picture. What is the threshold that we should pick?
+
+ What is the right way to go from correlation to binary adjacency 
+matrix? The paper will help you take a step in that direction.
+
+ You have all your correlations vectorized, take the Fisher's Z transformation
+ 1/2 of log r \ldots{} After taking this transformation the numbers are very close
+to normal with variance $\frac{1}{(n-3)}$, so I can compute the P-values for 
+all the correlation. 
+
+Now the multiple testing problem is waiting for us. We will find a cutoff and get
+a binary matrix 1 and 0.
+\begin{itemize}
+\item will send code for that
+\item this is an attempt at calculated the adjacency matrix
+
+\item the problem will be isolated node.
+\end{itemize}
+% Emacs 24.4.1 (Org mode 8.2.10)
+\end{document}

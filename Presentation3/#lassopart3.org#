@@ -1,0 +1,392 @@
+#+STARTUP: beamer
+#+LaTeX_CLASS: beamer
+#+LaTeX_CLASS_OPTIONS: [bigger]
+#+TITLE: lassopart
+#+DATE: <2016-02-12 Fri>
+#+AUTHOR: Nooreen S Dabbish
+#+EMAIL: nooreen@noory
+#+OPTIONS: ':t *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t
+#+OPTIONS: c:nil creator:comment d:(not "LOGBOOK") date:t e:t
+#+OPTIONS: email:nil f:t inline:t num:t p:nil pri:nil stat:t tags:t
+#+OPTIONS: tasks:t tex:t timestamp:t toc:t todo:t |:t
+#+CREATOR: Emacs 24.4.1 (Org mode 8.2.10)
+#+DESCRIPTION:
+#+EXCLUDE_TAGS: noexport
+#+KEYWORDS:
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+#+BEAMER_FRAME_LEVEL: 2
+#+COLUMNS: %40ITEM %10BEAMER_env(Env) %9BEAMER_envargs(Env Args) %4BEAMER_col(Col) %10BEAMER_extra(Extra)
+
+
+* Lasso Regression in (Casanova 2012)
+
+*** Ensemble method based on lasso regression
+
+- takes advantage of lasso's sparsity property
+- index for scoring variable importance
+     + scores based on subsampling and ensemble learning
+     + using penalized lasso linear regression
+- coordinate descent
+     + GLMNET library
+     + time-efficient use of full data space
+- No feature reduction: full set of correlations
+
+*** Matrix vectorization and adding responses (gender)
+
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+
+   ## Create list of unique region abbreviations from original list
+   ## Adds integers (starting with 2) to non-unique values
+   setwd('~/Documents/BejingZhang')
+   abbrev <- read.table("abbreviations.txt")
+   abbrev[] <- lapply(abbrev, as.character)
+   v <- vector("list", 0)
+   v <- abbrev[[1]][1]
+   for (j in 2:dim(abbrev)[1]){
+       x <- 1
+       y <- abbrev[[1]][j]
+       while (is.element(y, v)){
+          x <- x+1
+          y <- paste0(abbrev[[1]][j],as.character(x), sep="")
+       }
+       v <- c(v,y)
+   }
+
+   table(v) # they are now all unique
+ 
+   ## create list of downloaded folders with data
+   ## there were problems reading in 954,955,956,957
+   array <- c(787:839,841:851,853,857:865,867:872,875:878,
+              880:938,940:953,974:978)
+   array2 <-list()
+
+  metadata <- read.csv("metadata-bejingZangOnly.csv", header = TRUE)
+  head(metadata)
+  metadata <- metadata[,c("upload_data.id","upload_data.subject_pool", "upload_data.group_size")]
+  colnames(metadata) <- c("id","age","gender")
+  metadata[metadata$id == 787,]$gender
+
+  vectorgender <- data.frame(matrix(nrow=length(array), ncol=((length(v)*(length(v)-1)/2+1+1+1) )))
+
+
+  ##need to create a vector of labels
+  corrlabels <- c()
+  for(i in 2:(length(v))){
+      for (j in 1:(i-1)){
+          corrlabels <- c(corrlabels,paste(v[i],v[j],sep="-"))
+      }
+  }
+
+  colnames(vectorgender) <- c("id","age","gender",corrlabels)
+  levels(vectorgender$gender) <- c("Male","Female")
+
+  ## Read in connectivity matrices, add row/col labels, and add 1 to diagonal
+   for (i in 1:length(array)){
+   array2[[i]] <- read.table(paste0(paste0("connectivity_matrix",as.character(array[i])),".txt"))
+   dimnames(array2[[i]])[[1]] <- as.vector(v)
+   dimnames(array2[[i]])[[2]] <- as.vector(v)
+   array2[[i]] <- array2[[i]] + diag(x=1,nrow = length(array2[[i]]))
+   vectorgender[i,] <- c(metadata[metadata$id == array[i], ]$id,
+                         metadata[metadata$id == array[i], ]$age,
+                         as.factor(metadata[metadata$id == array[i], ]$gender),
+                         unlist(array2[[i]][upper.tri(array2[[i]],diag=FALSE)]))
+   }
+
+
+  setwd('~/Dropbox/STAT 9190 Project/jstsp2015/Presentation3')
+                                      
+#+END_SRC
+
+#+RESULTS:
+: /home/nooreen/Documents/BejingZhang
+
+
+** Load GLMNET and fit data
+
+*** Code
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  ## install.packages("glmnet", repos='http://cran.us.r-project.org')
+  library(glmnet)
+
+  fit = glmnet(x = as.matrix(vectorgender[,-(1:3)]),
+               y = as.vector(vectorgender$gender))
+
+  plot(fit, label =TRUE)
+#+END_SRC
+
+#+RESULTS:
+
+*** Plot
+
+[[file:coeffplot.png]]
+
+** Cross-Validation
+
+*** Code
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  cvfit = cv.glmnet(x = as.matrix(vectorgender[,-(1:3)]),
+                    y = (vectorgender$gender))
+
+  plot(cvfit)
+#+END_SRC
+
+#+RESULTS:
+
+*** Plot
+
+[[file:cvplot.png]]
+
+*** Selected \lambda s
+
+#+BEGIN_SRC R :session cmatrix :results output :exports both :tangle yes
+  cvfit$lambda.min
+  b <- as.matrix(coef(cvfit))
+  blins <- rownames(b)[b != 0]
+#+END_SRC
+
+#+RESULTS:
+: [1] 0.07332683
+:  [1] "(Intercept)"   "LFOC-LC"       "LMFG-LAG"      "RFP3-RPG5"    
+:  [5] "RCGad4-RPG4"   "RCOC2-RCOC"    "LIC3-RTP2"     "LPGpd-LPC"    
+:  [9] "RPOC-RLOCid2"  "ROP3-LMTGtp"   "RT2-RP"        "RSTGpd2-LFOC3"
+: [13] "LSPL-LIC3"     "LSC-LC2"       "RFP8-RPG5"     "LLG2-LLOCsd2" 
+: [17] "LLG3-LSFG"     "RTP3-LC"       "RTP3-LC2"      "LTOFC2-LPGpd" 
+: [21] "B-RPC"         "B-RLOCsd2"
+
+**** ~lambda.min~ value that gives minimum cross-validated error
+
+#+BEGIN_SRC R :session cmatrix :results output :exports both :tangle yes
+cvfit$lambda.1se
+#+END_SRC
+
+#+RESULTS:
+: [1] 0.1015493
+
+**** TODO ~lambda.1se~ value that gives most regularized model with error vwithin one standard error of minimum cross-validated error
+
+#+BEGIN_SRC R :session cmatrix :results output :exports both :tangle yes
+  b <- as.matrix(coef(cvfit, s= "lambda.1se"))
+  rownames(b)[b!=0]
+#+END_SRC
+
+#+RESULTS:
+:  [1] "(Intercept)"   "LFOC-LC"       "LMFG-LAG"      "RFOC2-RFOC"   
+:  [5] "RFP3-RPG5"     "RCGad4-RPG4"   "RCOC2-RCOC"    "LIC3-RTP2"    
+:  [9] "LPGpd-LPC"     "LPGpd-RTFCpd"  "RPG9-RTFCpd2"  "RFP6-LPG6"    
+: [13] "LMFG3-LPG6"    "RPOC-RLOCid2"  "ROP3-LMTGtp"   "RT2-RP"       
+: [17] "RSTGpd2-LFOC3" "LSPL-LIC3"     "LSC-RPT"       "LSC-LC2"      
+: [21] "RFP8-RPG5"     "LLG2-LLOCsd2"  "RP2-LIC"       "LLG3-LSFG"    
+: [25] "RTP3-LC"       "RTP3-LC2"      "LTOFC2-LPGpd"  "B-RPC"        
+: [29] "B-RLOCsd2"     "LPT-LSC"
+
+
+
+
+** Logistic Lasso
+
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  cvlogfit = cv.glmnet(x = as.matrix(vectorgender[,-(1:3)]),
+                    y = (vectorgender$gender), family = "binomial")
+
+  plot(cvlogfit)
+#+END_SRC
+
+#+BEGIN_SRC R :session cmatrix :exports code :tangle yes
+  blog <- as.matrix(coef(cvlogfit))
+  blogs <- rownames(blog)[blog != 0]   
+  setdiff(blogs,blins)
+  length(blins)
+  length(blogs)
+#+END_SRC
+
+ #+NAME: From Brendan
+ #+BEGIN_SRC R :session cmatrix
+library(glmnet)
+library(lattice)
+library(igraph)
+library (corrplot)
+library(reshape)
+library(reshape2)
+library(randomForest)
+library(e1071)
+library(pROC)
+
+#setwd("/Users/Brendan/Dropbox/Kaggle 2014/Data")
+
+load("labels_train.Rda")
+load("FNC_train.Rda")
+load("SBM_train.Rda")
+
+
+
+##Original Data
+SBM_labels <- merge(labels_train, SBM_train, by="Id")
+labeledSBM <- SBM_labels[,c(-1, -35)]
+labeledSBM$Class <- factor(labeledSBM$Class)
+
+
+###LP Score Function####
+LP.Score.fun <- function(x,m){ 
+  u <- (rank(x,ties.method = c("average")) - .5)/length(x) 
+  m <- min(length(unique(u ))-1, m )
+  S.mat <- as.matrix(poly(u ,df=m)) 
+  return(as.matrix(scale(S.mat)))
+}
+
+
+
+###LP transformations of SBM Data###
+#Combines LP transformations and labels into one data set#
+LP_SBM <- function(x, y, m) {
+  SBM_mat <- as.matrix(x)
+  SBM.LP <- as.data.frame(y)
+  for (i in 1:ncol(SBM_mat)) {   
+    LP_mat <- as.data.frame(LP.Score.fun(SBM_mat[, i], m))
+    names(LP_mat)[1:m] <- paste0(colnames(SBM_mat)[i], "_", 1:m)
+    SBM.LP <- cbind(SBM.LP, LP_mat)
+  }
+  names(SBM.LP)[1] <- "Class"
+  SBM.LP$Class <- as.factor(SBM.LP$Class)
+  return(SBM.LP)
+}
+
+#Matrices of LP Transformations
+sbmLP1 <- LP_SBM(SBM_train[,-1], labels_train$Class, 1)
+sbmLP2 <- LP_SBM(SBM_train[,-1], labels_train$Class, 2)
+sbmLP3 <- LP_SBM(SBM_train[,-1], labels_train$Class, 3)
+
+###Lasso-Logistic Regression Function###
+
+##Label Vector Must be First Column in Data Matrix and a Factor### 
+##Returns Lasso-Logistic Accuracies over Given iteration and Resampling###
+##Percent is the percentage of data to use as training data, the rest will
+#be used for test
+#iteration tell the funciton how many times to perform lasso logistic
+LasLog <- function(X, percent, iteration) {
+  bound <- floor((nrow( X )/ 100)*percent)
+  acc <- NULL
+  for (i in 1:iteration){
+    Sample.tr <- X[sample(nrow(X)), ]
+    train <- Sample.tr[1:bound, ] 
+    test <- Sample.tr[(bound+1):nrow(Sample.tr), ]  
+    log.cv.fit <- cv.glmnet(as.matrix(train[,-1]), train$Class, 
+                       family = "binomial", alpha=1)
+    log.predict <- as.factor(predict(log.cv.fit, as.matrix(test[,-1]),
+                         type="class", s="lambda.min"))
+    test[,1] <- as.numeric(levels(test[,1]))[test[,1]]
+    log.predict <- as.numeric(levels(log.predict))[log.predict]
+    acc[i] <- auc(test[,1], log.predict)
+    }
+acc <- as.data.frame(acc)
+return(acc)
+}
+
+OrigLog <- LasLog(labeledSBM, 80, 200)
+LPLog1 <- LasLog(sbmLP1, 80, 200)
+LPLog2 <- LasLog(sbmLP2, 80, 200)
+LPLog3 <- LasLog(sbmLP3, 80, 200)
+
+
+####Random Forest Accuracy Function####
+##Returns Accuracies of performing iterations of resampled data##
+
+
+rf <- function(X, percent, iteration) {
+  bound <- floor((nrow( X )/ 100)*percent)
+  acc <- NULL
+  for (i in 1:iteration){
+    Sample.tr <- X[sample(nrow(X)), ]
+    train <- Sample.tr[1:bound, ] 
+    test <- Sample.tr[(bound+1):nrow(Sample.tr), ]  
+    rf.fit <- randomForest(as.matrix(train[,-1]), train$Class, 
+                            family = "binomial", alpha=1)
+    rf.predict <- as.factor(predict(rf.fit, as.matrix(test[,-1]),
+                                     type="class"))
+    test[,1] <- as.numeric(levels(test[,1]))[test[,1]]
+    rf.predict <- as.numeric(levels(rf.predict))[rf.predict]
+    acc[i] <- auc(test[,1], rf.predict)
+  }
+  acc <- as.data.frame(acc)
+  return(acc)
+}
+
+Orig.rf <- rf(labeledSBM, 80, 200)
+LP.rf1 <- rf(sbmLP1, 80, 200)
+LP.rf2 <- rf(sbmLP2, 80, 200)
+LP.rf3 <- rf(sbmLP3, 80, 200)
+
+##SVM Accuracy Function####
+#X must be data matrix with factored labels as first column
+#k determines value for k-fold cross validation
+SVMcross <- function(X, percent, k, iteration) {
+  accuracy <- NULL
+  for (i in 1:iteration) {
+    X.tr.samp <- X[sample(nrow(X)), ]
+    bound <- floor((nrow(X.tr.samp)/100)*80)
+    data.tr <- X.tr.samp[1:bound, ]
+    data.test <- X.tr.samp[(bound+1):nrow(X.tr.samp),]
+    data.tune <- tune.svm(data.tr[,-1], data.tr[,1],
+                          gamma = 2^(-15:3), cost = 2^(-3:15), 
+                          tune.control(cross = k))
+    bestGamma <- data.tune$best.parameters[[1]]
+    bestC <- data.tune$best.parameters[[2]]
+    data.svm <- svm(data.tr[,-1], data.tr[,1], gamma = bestGamma,
+                    cost = bestC)
+    data.predict <- as.factor(predict(data.svm, data.test[,-1],
+                            type="class"))
+    data.predict <- as.numeric(levels(data.predict))[data.predict]
+    data.test[,1] <- as.numeric(levels(data.test[,1]))[data.test[,1]]
+    accuracy[i] <- auc(data.test[,1], data.predict)
+  }
+  accuracy <- as.data.frame(accuracy)
+  return(accuracy)
+}
+
+Orig.SVM <- SVMcross(labeledSBM, 80, 10, 100)
+LP.svm3 <- SVMcross(sbmLP3, 80, 10, 100)
+
+
+##Building Boxplot Comparisons
+
+library(ggplot2)
+acc.rf <- cbind(LP.rf3, Orig.rf)
+names(acc.rf) <- c("LP", "Original")
+acc.rf <- melt(acc.rf)
+acc.rf$Model <- rep("RF", length(acc.rf))
+
+acc.log <- cbind(LPlog3, OrigLog)
+names(acc.log) <- c("LP", "Original")
+acc.log <- melt(acc.log)
+acc.log$Model <- rep("Logistic", length(acc.log))
+
+
+acc.SVM <- cbind(LP.svm3, Orig.SVM)
+names(acc.SVM) <- c("LP", "Original")
+acc.SVM <- melt(acc.SVM)
+acc.SVM$Model <- rep("SVM", length(acc.SVM))
+
+acc.box <- rbind(acc.rf, acc.log, acc.SVM)
+
+
+ggplot(data = acc.box, aes(x=Model, y=value)) +  geom_boxplot(aes(fill=variable))
+
+
+###Boxplots Comparing different Lasso-Logistics###
+
+logaccs <- cbind(OrigLog, LPLog1, LPlog2, LPlog3)
+names(logaccs) <- c("Original", "m=1", "m=2", "m=3")
+logaccs <- melt(logaccs)
+
+ggplot(data = logaccs, aes(x=variable, y=value)) +  geom_boxplot(aes(fill=variable))
+
+####Boxplots Comparing Random Forests###
+rfaccs <- cbind(Orig.rf, LP.rf1, LP.rf2, LP.rf3)
+names(rfaccs) <- c("Original", "m=1", "m=2", "m=3")
+rfaccs <- melt(rfaccs)
+
+ggplot(data = rfaccs, aes(x=variable, y=value)) +  geom_boxplot(aes(fill=variable)) 
+
+
+
+ #+END_SRC
